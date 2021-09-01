@@ -35,7 +35,7 @@ if ( ! class_exists( 'WC_Metricas_Boss_Integration' ) ) {
 
 		/**
 		 * Initialize the plugin.
-		 */
+		*/
 		public function __construct() {
 			if ( ! class_exists( 'WooCommerce' ) ) {
 				return;

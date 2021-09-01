@@ -56,10 +56,11 @@ class WC_Metricas_Boss_JS {
 		
 		return "<script type='text/javascript'>
 			let impressions = window.impressions || [];
-			let dataLayer = [{
-				'userId': '".$userId."',
-				'pageCategory': '".self::get_page_category()."',
-			}]
+			var dataLayer = window.dataLayer || [];
+				dataLayer.push({
+					'userId': '".$userId."',
+					'pageCategory': '".self::get_page_category()."',
+				});
 		</script>";
 	}
 
@@ -69,11 +70,13 @@ class WC_Metricas_Boss_JS {
 	 * @param WC_Product $product
 	 * @param int $position
 	 */
-	public static function insert_product_impression($product, $position ) {
-		if ( isset( $_GET['s'] ) ) {
-			$list = "Search Results";
-		} else {
-			$list = "Product List";
+	public static function insert_product_impression($product, $position, $list ) {
+        if(empty($list)) {
+			if ( isset( $_GET['s'] ) ) {
+				$list = "Search Results";
+			} else {
+				$list = "Product List";
+			}
 		}
 
 		wc_enqueue_js("
@@ -82,8 +85,8 @@ class WC_Metricas_Boss_JS {
 				'name': '" . esc_js( $product->get_title() ) . "',
 				'category': " . self::product_get_category_line( $product ) . "
 				'list': '" . esc_js( $list ) . "',
-				'position': '" . esc_js( $position ) . "',
-				'price': '".esc_js($product->get_price()) ."',
+				'position': " . esc_js( $position ) . ",
+				'price': ".esc_js(self::product_get_price($product->get_price())) .",
 			})
 		");
 	}
@@ -94,11 +97,13 @@ class WC_Metricas_Boss_JS {
 	 * @param WC_Product $product
 	 * @param int $position
 	 */
-	public static function insert_product_click( $product, $position ) {
-		if ( isset( $_GET['s'] ) ) {
-			$list = "Search Results";
-		} else {
-			$list = "Product List";
+	public static function insert_product_click( $product, $position, $list ) {
+		if(empty($list)) {
+			if ( isset( $_GET['s'] ) ) {
+				$list = "Search Results";
+			} else {
+				$list = "Product List";
+			}
 		}
 
 		wc_enqueue_js( "
@@ -116,8 +121,8 @@ class WC_Metricas_Boss_JS {
 								'id': '" . esc_js( $product->get_id() ) . "',
 								'name': '" . esc_js( $product->get_title() ) . "',
 								'category': " . self::product_get_category_line( $product ) . "
-								'position': '" . esc_js( $position ) . "',
-								'price': '".esc_js($product->get_price()) ."',
+								'position': " . esc_js( $position ) . ",
+								'price': ".esc_js(self::product_get_price($product->get_price())) .",
 							} ],
 						}
 					}
@@ -133,7 +138,6 @@ class WC_Metricas_Boss_JS {
 	 * @param int $position
 	 */
 	public static function product_detail( $product ) {
-
 		wc_enqueue_js("
 			dataLayer.push({
 				'ecommerce': {
@@ -143,9 +147,7 @@ class WC_Metricas_Boss_JS {
 							'id': '" . esc_js( $product->get_id() ) . "',
 							'name': '" . esc_js( $product->get_title() ) . "',
 							'category': " . self::product_get_category_line( $product ) . "
-							'list': '" . esc_js( $list ) . "',
-							'position': '" . esc_js( $position ) . "',
-							'price': '".esc_js($product->get_price()) ." || 0',
+							'price': ".esc_js(self::product_get_price(($product->get_price()))) ."
 						}]
 					}
 				}
@@ -169,10 +171,77 @@ class WC_Metricas_Boss_JS {
 		");	
 	}
 
+	/**
+ 	* Enqueue JavaScript for Add to cart tracking
+	*
+	* @param object $product object
+	* @param string $selector jQuery selector for binding click event
+	*/
+	public static function add_to_cart( $product, $selector ) {
+
+		wc_enqueue_js("
+			$( '" . $selector . "' ).on( 'click', function() {
+				dataLayer.push({
+					'event': 'addToCart',
+					'ecommerce': {
+						'add': {
+							'products':[{
+								'id': '" . esc_js( $product->get_id() ) . "',
+								'name': '" . esc_js( $product->get_title() ) . "',
+								'category': " . self::product_get_category_line( $product ) . "
+								'price': ".esc_js(self::product_get_price(($product->get_price()) )).",
+								'quantity': $( 'input.qty' ).val() ? $( 'input.qty' ).val() : '1'
+							}]
+						}
+					}
+	
+				})
+			});
+		");
+	}
+
+	/**
+	 * Enqueues JavaScript to build checkout event
+	 *
+	 * @param Cart $cart
+	 
+	 */
+	public static function checkout_process( $cart ) {
+		wc_enqueue_js("
+			var products_checkout = window.products_checkout || [];
+		");
+		// Loop over $cart items
+		foreach ( WC()->cart->get_cart() as $cart_item_key => $cart_item ) {
+			$product = $cart_item['data'];
+			
+			wc_enqueue_js("
+				products_checkout.push({
+					'id': '" . esc_js( $product->get_id() ) . "',
+					'name': '" . esc_js( $product->get_title() ) . "',
+					'category': " . self::product_get_category_line( $product ) . "
+					'price': ".esc_js(self::product_get_price(($product->get_price()) )).",
+					'quantity': parseInt(". $cart_item['quantity'] .")
+				})
+			");
+		}
+
+
+		wc_enqueue_js("
+			dataLayer.push({
+				'event': 'checkout',
+				'ecommerce': {
+					'checkout': {
+						'actionField': {'step': 1},
+						'products': products_checkout
+					}
+				}
+
+			})
+		");
+	}
 
 	public static function get_page_category() {
 		$pageCategory = 'Other';
-		
 		if( is_home() ) {
 			$pageCategory = 'Home';
 		}
@@ -251,54 +320,45 @@ class WC_Metricas_Boss_JS {
 	 * @return string Purchase Custom event of Google tag manager
 	 */
 	function purchase( $order ) {
-		if ( 'yes' == self::get( 'gtm_ecommerce_tracking_enabled' ) ) {
-			$code = "var dataLayer = window.dataLayer || [];";
-			$products = [];
 
-			// Order items
-			if ( $order->get_items() ) {
-				foreach ( $order->get_items() as $item ) {
-					//mudar essa merda para um array não sou idiota php
-					$products[] = self::add_item_in_transaction_products( $order, $item );
+		if ( 'yes' == self::get( 'gtm_ecommerce_tracking_enabled' ) ) {
+
+			if ( $order->get_items()) {
+				foreach ( $order->get_items() as $product ) {
+					wc_enqueue_js("
+						products_purchase.push({
+							'id': '" . esc_js( $product->get_id() ) . "',
+							'name': '" . esc_js( $product->get_name() ) . "',
+							'category': " . self::product_get_category_line( $product ) . "
+							'price': ".esc_js(self::product_get_price(($product->get_total()) )).",
+							'quantity': ". $product->get_quantity() ."
+						})
+					");
 				}
 			}
+			
+			wc_enqueue_js("
+				var dataLayer = window.dataLayer || [];	
+				dataLayer.push({
+					'ecommerce': {
+						'purchase': {
+							'actionField': {
+								'id': '" . esc_js( $order->get_order_number() ) . "',
+								'affiliation': '" . esc_js( get_bloginfo( 'name' ) ) . "',
+								'revenue':  ". esc_js( $order->get_total() ) ." ,
+								'tax': ". esc_js( $order->get_total_tax() ) .",
+								'shipping': ". esc_js( $order->get_total_shipping() ) .",
+								'coupon': '". esc_js( !empty($order->get_coupon_codes()) ?  $order->get_coupon_codes()[0] : '') ."'
+							},
+							'products': products_purchase
+						}
+					}
 
-			$code .= "dataLayer.push({
-				'event': 'purchase',
-				'transactionId': '" . esc_js( $order->get_order_number() ) . "',         // Transaction ID. Required
-				'transactionAffiliation': '" . esc_js( get_bloginfo( 'name' ) ) . "',    // Affiliation or store name
-				'transactionTotal': " . esc_js( $order->get_total() ) . ",           // Grand Total
-				'transactionShipping': " . esc_js( $order->get_total_shipping() ) . ", // Shipping
-				'transactionTax': " . esc_js( $order->get_total_tax() ) . ",           // Tax
-				'transactionProducts': ".json_encode($products).",
-			})";
+				})
+			");
 
-			return $code; 
 		}
 	}
-
-	
-	/**
-	 * Add product in transactionProducts
-	 * @param object $order WC_Order Object
-	 * @param array $item  The item to add to a transaction/order
-	 */
-	function add_item_in_transaction_products( $order, $item ) {
-		$_product = version_compare( WC_VERSION, '3.0', '<' ) ? $order->get_product_from_item( $item ) : $item->get_product();
-
-		$product = (object) array(
-			'id' => esc_js( $order->get_order_number() ),
-			'name' => esc_js( $item['name'] ),
-			'sku' => esc_js( $_product->get_sku() ? $_product->get_sku() : $_product->get_id() ),
-			'category' => self::product_get_category_line( $_product ),
-			'price' => esc_js( $order->get_item_total( $item ) ),
-			'quantity' => esc_js( $item['qty'] )
-
-		);
-
-		return $product;
-	}
-
 
 
 	/**
@@ -326,5 +386,12 @@ class WC_Metricas_Boss_JS {
 		return "'" . esc_js( join( "/", $out ) ) . "',";
 	}
 
-	
+	/**
+	* Returns a price JSON line based on $product
+	* @param  object $price  Price Product to pull info for
+	* @return int  Line of JSON
+	*/
+	private static function product_get_price($price) {
+		return $price > 0 ? $price : 0;
+	}
 }

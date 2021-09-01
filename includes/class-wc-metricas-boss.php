@@ -48,13 +48,19 @@ class WC_Metricas_Boss extends WC_Integration {
 		add_action( 'admin_enqueue_scripts', array( $this, 'load_admin_assets') );
 		
 		// Tracking code
+		
 			// Product impressions
 			add_action( 'woocommerce_after_shop_loop_item', array( $this, 'insert_product_impression' ) );
 			add_action( 'woocommerce_after_shop_loop_item', array( $this, 'insert_product_click' ) );
 			add_action( 'woocommerce_product_loop_end', array( $this, 'listing_impression' ) );
 			
+			// Detail
 			add_action( 'woocommerce_after_single_product', array( $this, 'product_detail' ) );
+			// Add to Cart
+			add_action( 'woocommerce_after_add_to_cart_button', array( $this, 'add_to_cart' ) );
 
+			// Checkout
+			add_action( 'woocommerce_after_checkout_form', array( $this, 'checkout_process' ) );
 		
 			add_action( 'wp_head', array( $this, 'tracking_code_display' ), 999999 );
 
@@ -182,26 +188,17 @@ class WC_Metricas_Boss extends WC_Integration {
 			return;
 		}
 		
-		// Check if is order received page and stop when the products and not tracked
+		echo $this->get_standard_tracking_code();
 
+		// Check if is order received page and stop when the products and not tracked
 		if ( is_order_received_page() && 'yes' === $this->gtm_ecommerce_tracking_enabled ) {
-			
+		
 			$order_id = isset( $wp->query_vars['order-received'] ) ? $wp->query_vars['order-received'] : 0;
 			
 			if ( 0 < $order_id && 1 != get_post_meta( $order_id, '_ga_tracked', true ) ) {
 				$display_ecommerce_tracking = true;
-				
 				echo $this->get_ecommerce_tracking_code( $order_id );
 			}
-		}
-		
-		if ( is_woocommerce() || is_cart() || ( is_checkout() && ! $display_ecommerce_tracking ) ) {
-			$display_ecommerce_tracking = true;
-			echo $this->get_standard_tracking_code();
-		}
-
-		if ( ! $display_ecommerce_tracking && 'yes' === $this->gtm_standard_data_enabled ) {
-			echo $this->get_standard_tracking_code();
 		}
 	}
 
@@ -254,19 +251,7 @@ class WC_Metricas_Boss extends WC_Integration {
 		if ( ! $order ) {
 			return '';
 		}
-
-		$code = WC_Metricas_Boss_JS::get_instance()->load_gtm();
-		$code .= WC_Metricas_Boss_JS::get_instance()->purchase( $order );
-
-		// Mark the order as tracked.
-		update_post_meta( $order_id, '_ga_tracked', 1 );
-
-		return "
-			<!-- WooCommerce Métricas Boss Integration -->
-			" . WC_Metricas_Boss_JS::get_instance()->header() . "
-			<script type='text/javascript'>$code</script>
-			<!-- /WooCommerce Métricas Boss Integration -->
-		";
+		return WC_Metricas_Boss_JS::get_instance()->purchase( $order );
 	}
 
 	/**
@@ -288,7 +273,7 @@ class WC_Metricas_Boss extends WC_Integration {
 	 * @return void
 	 */
 	public function add_to_cart() {
-		if ( $this->disable_tracking( $this->ga_event_tracking_enabled ) ) {
+		if ( $this->disable_tracking( $this->gtm_ecommerce_enhanced_tracking_enabled ) ) {
 			return;
 		}
 		if ( ! is_single() ) {
@@ -297,16 +282,11 @@ class WC_Metricas_Boss extends WC_Integration {
 
 		global $product;
 
-		if ( ! $this->disable_tracking( $this->ga_enhanced_ecommerce_tracking_enabled ) ) {
-			$code = "" . WC_Metricas_Boss_JS::get_instance()->tracker_var() . "( 'ec:addProduct', {";
-			$code .= "'id': '" . esc_js( $product->get_sku() ? $product->get_sku() : ( '#' . $product->get_id() ) ) . "',";
-			$code .= "'name': '" . esc_js( $product->get_title() ) . "',";
-			$code .= "'quantity': $( 'input.qty' ).val() ? $( 'input.qty' ).val() : '1'";
-			$code .= "} );";
-			$parameters['enhanced'] = $code;
+		if ( ! $this->disable_tracking( $this->gtm_ecommerce_enhanced_tracking_enabled ) ) {
+			WC_Metricas_Boss_JS::get_instance()->add_to_cart(  $product, '.single_add_to_cart_button' );
 		}
 
-		WC_Metricas_Boss_JS::get_instance()->event_tracking_code( $parameters, '.single_add_to_cart_button' );
+		
 	}
 
 	/**
@@ -389,7 +369,7 @@ class WC_Metricas_Boss extends WC_Integration {
 
 
 		global $product, $woocommerce_loop;
-		WC_Metricas_Boss_JS::get_instance()->insert_product_impression( $product, $woocommerce_loop['loop'] );
+		WC_Metricas_Boss_JS::get_instance()->insert_product_impression( $product, $woocommerce_loop['loop'], $woocommerce_loop['name'] );
 	}
 
 	/**
@@ -416,7 +396,7 @@ class WC_Metricas_Boss extends WC_Integration {
 
 
 		global $product, $woocommerce_loop;
-		WC_Metricas_Boss_JS::get_instance()->insert_product_click( $product, $woocommerce_loop['loop'] );
+		WC_Metricas_Boss_JS::get_instance()->insert_product_click( $product, $woocommerce_loop['loop'], $woocommerce_loop['name']);
 	}
 
 	/**
@@ -436,15 +416,7 @@ class WC_Metricas_Boss extends WC_Integration {
 	 * Tracks when the checkout form is loaded
 	 */
 	public function checkout_process( $checkout ) {
-		if ( $this->disable_tracking( $this->ga_use_universal_analytics ) ) {
-			return;
-		}
-
-		if ( $this->disable_tracking( $this->ga_enhanced_ecommerce_tracking_enabled ) ) {
-			return;
-		}
-
-		if ( $this->disable_tracking( $this->ga_enhanced_checkout_process_enabled ) ) {
+		if ( $this->disable_tracking( $this->gtm_ecommerce_enhanced_tracking_enabled ) ) {
 			return;
 		}
 
