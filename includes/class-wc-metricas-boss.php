@@ -332,33 +332,6 @@ class WC_Metricas_Boss extends WC_Integration {
 	}
 
 	/**
-	 * Google Analytics event tracking for loop add to cart
-	 *
-	 * @return void
-	 */
-	public function loop_add_to_cart() {
-		if ( $this->disable_tracking( $this->ga_event_tracking_enabled ) ) {
-			return;
-		}
-
-		// Add single quotes to allow jQuery to be substituted into _trackEvent parameters
-		$parameters = array();
-		$parameters['category'] = "'" . __( 'Products', 'woocommerce-google-analytics-integration' ) . "'";
-		$parameters['action']   = "'" . __( 'Add to Cart', 'woocommerce-google-analytics-integration' ) . "'";
-		$parameters['label']    = "($(this).data('product_sku')) ? ($(this).data('product_sku')) : ('#' + $(this).data('product_id'))"; // Product SKU or ID
-
-		if ( ! $this->disable_tracking( $this->ga_enhanced_ecommerce_tracking_enabled ) ) {
-			$code = "" . WC_Metricas_Boss_JS::get_instance()->tracker_var() . "( 'ec:addProduct', {";
-			$code .= "'id': ($(this).data('product_sku')) ? ($(this).data('product_sku')) : ('#' + $(this).data('product_id')),";
-			$code .= "'quantity': $(this).data('quantity')";
-			$code .= "} );";
-			$parameters['enhanced'] = $code;
-		}
-
-		WC_Metricas_Boss_JS::get_instance()->event_tracking_code( $parameters, '.add_to_cart_button:not(.product_type_variable, .product_type_grouped)' );
-	}
-
-	/**
 	 * Insert product in a list of products impressions
 	 */
 	public function insert_product_impression() {
@@ -369,7 +342,7 @@ class WC_Metricas_Boss extends WC_Integration {
 
 
 		global $product, $woocommerce_loop;
-		WC_Metricas_Boss_JS::get_instance()->insert_product_impression( $product, $woocommerce_loop['loop'], $woocommerce_loop['name'] );
+		WC_Metricas_Boss_JS::get_instance()->insert_product_impression( $product, $woocommerce_loop['loop'], $woocommerce_loop['name'], $woocommerce_loop['total'] );
 	}
 
 	/**

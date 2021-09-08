@@ -55,7 +55,6 @@ class WC_Metricas_Boss_JS {
 		$userId = wp_get_current_user()->ID !== 0 ? wp_get_current_user()->ID : null;
 		
 		return "<script type='text/javascript'>
-			let impressions = window.impressions || [];
 			var dataLayer = window.dataLayer || [];
 				dataLayer.push({
 					'userId': '".$userId."',
@@ -78,6 +77,11 @@ class WC_Metricas_Boss_JS {
 				$list = "Product List";
 			}
 		}
+
+		if($position == 1) {
+			wc_enqueue_js("var impressions = []");
+		}
+
 
 		wc_enqueue_js("
 			impressions.push({
@@ -322,7 +326,7 @@ class WC_Metricas_Boss_JS {
 	function purchase( $order ) {
 
 		if ( 'yes' == self::get( 'gtm_ecommerce_tracking_enabled' ) ) {
-
+			wc_enqueue_js("var products_purchase = window.products_purchase || [];	");
 			if ( $order->get_items()) {
 				foreach ( $order->get_items() as $product ) {
 					wc_enqueue_js("
