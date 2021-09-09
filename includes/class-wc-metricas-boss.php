@@ -58,6 +58,11 @@ class WC_Metricas_Boss extends WC_Integration {
 			add_action( 'woocommerce_after_single_product', array( $this, 'product_detail' ) );
 			// Add to Cart
 			add_action( 'woocommerce_after_add_to_cart_button', array( $this, 'add_to_cart' ) );
+			// Remove From Cart
+			add_action( 'woocommerce_after_cart', array( $this, 'remove_from_cart' ) );
+			add_action( 'woocommerce_after_mini_cart', array( $this, 'remove_from_cart' ) );
+			add_filter( 'woocommerce_cart_item_remove_link', array( $this, 'remove_from_cart_attributes' ), 10, 2 );
+
 
 			// Checkout
 			add_action( 'woocommerce_after_checkout_form', array( $this, 'checkout_process' ) );
@@ -293,15 +298,7 @@ class WC_Metricas_Boss extends WC_Integration {
 	 * Enhanced Analytics event tracking for removing a product from the cart
 	 */
 	public function remove_from_cart() {
-		if ( $this->disable_tracking( $this->ga_use_universal_analytics ) ) {
-			return;
-		}
-
-		if ( $this->disable_tracking( $this->ga_enhanced_ecommerce_tracking_enabled ) ) {
-			return;
-		}
-
-		if ( $this->disable_tracking( $this->ga_enhanced_remove_from_cart_enabled ) ) {
+		if ( $this->disable_tracking( $this->gtm_ecommerce_enhanced_tracking_enabled ) ) {
 			return;
 		}
 

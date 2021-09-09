@@ -205,6 +205,33 @@ class WC_Metricas_Boss_JS {
 	}
 
 	/**
+ 	* Enqueue JavaScript for Remove from cart tracking
+	*
+	* @param object $product object
+	*/
+	public static function remove_from_cart() {
+
+		wc_enqueue_js("
+			$( '.remove' ).on( 'click', function() {
+				dataLayer.push({
+					'event': 'removeFromCart',
+					'ecommerce': {
+						'remove': {
+							'products':[{
+								'id': ($(this).data('product_sku')) ? ($(this).data('product_sku')) : ('#' + $(this).data('product_id')),
+								'quantity': $(this).parent().parent().find( '.qty' ).val() ? $(this).parent().parent().find( '.qty' ).val() : '1',
+							}]
+						}
+					}
+	
+				})
+			});
+		");
+	}
+	
+
+
+	/**
 	 * Enqueues JavaScript to build checkout event
 	 *
 	 * @param Cart $cart
